@@ -197,7 +197,7 @@
         
         <div id="image-container"></div>
         <div id="result" class="result"></div>
-        <div id="captured-image" class="hidden"></div>
+        <div id="captured-image"></div>
     </div>
 
     <div class="disclaimer" id="disclaimer">
@@ -247,13 +247,17 @@
                     reader.onload = async (e) => {
                         const imgElement = document.createElement('img');
                         imgElement.src = e.target.result;
+                        imgElement.id = 'uploaded-image';
                         imgElement.classList.add('uploaded-image');
                         imageContainer.innerHTML = '';
                         imageContainer.appendChild(imgElement);
 
-                        // Perform object detection
-                        const predictions = await model.classify(imgElement);
-                        displayResult(predictions);
+                        // Wait for the image to load
+                        imgElement.onload = async () => {
+                            // Perform object detection
+                            const predictions = await model.classify(imgElement);
+                            displayResult(predictions);
+                        };
                     };
                     reader.readAsDataURL(file);
                 }
@@ -321,9 +325,12 @@
                 imageContainer.innerHTML = '';
                 imageContainer.appendChild(imgElement);
 
-                // Perform object detection
-                const predictions = await model.classify(imgElement);
-                displayResult(predictions);
+                // Wait for the image to load
+                imgElement.onload = async () => {
+                    // Perform object detection
+                    const predictions = await model.classify(imgElement);
+                    displayResult(predictions);
+                };
             });
 
             // Refresh button functionality
@@ -331,6 +338,7 @@
                 fileInput.value = '';
                 imageContainer.innerHTML = '';
                 resultContainer.innerHTML = '';
+                capturedImage.innerHTML = '';
             });
 
             // Function to display the result
