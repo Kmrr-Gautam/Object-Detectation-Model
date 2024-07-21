@@ -1,0 +1,352 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Object Detection</title>
+    <style>
+        body {
+            font-family: 'Arial', sans-serif;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            color: #333;
+            overflow-x: hidden;
+            animation: backgroundAnimation 9s infinite; /* Color-changing background */
+        }
+
+        @keyframes backgroundAnimation {
+            0% { background: linear-gradient(135deg, #e0bbeb, #d5aaea); }
+            33% { background: linear-gradient(135deg, #d5aaea, #b3a1e5); }
+            66% { background: linear-gradient(135deg, #b3a1e5, #e0bbeb); }
+            100% { background: linear-gradient(135deg, #e0bbeb, #d5aaea); }
+        }
+
+        .welcome-screen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(135deg, #ff9a8b, #ff6f61);
+            color: #fff;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+            transition: opacity 1s ease-in-out, visibility 1s ease-in-out;
+            z-index: 10;
+            text-align: center;
+            padding: 20px;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.5);
+        }
+
+        .welcome-screen.hidden {
+            opacity: 0;
+            visibility: hidden;
+        }
+
+        .container {
+            text-align: center;
+            padding: 20px;
+            background: #fff;
+            border-radius: 15px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+            margin-top: 20px;
+            max-width: 600px;
+            width: 90%;
+            z-index: 1;
+        }
+
+        h1 {
+            margin-bottom: 20px;
+            color: #00796b;
+        }
+
+        .file-input, .camera-button, .capture-button, .refresh-button {
+            display: block;
+            margin: 20px auto;
+            padding: 10px;
+            font-size: 16px;
+            border: 2px solid #00796b;
+            border-radius: 5px;
+            background-color: #e0f2f1;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+
+        .file-input:hover, .camera-button:hover, .capture-button:hover, .refresh-button:hover {
+            background-color: #b2dfdb;
+        }
+
+        .uploaded-image, #captured-image {
+            max-width: 100%;
+            height: auto;
+            max-height: 400px;
+            margin: 20px 0;
+            border-radius: 10px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+        }
+
+        .result {
+            font-size: 18px;
+            margin-top: 20px;
+            text-align: center;
+        }
+
+        .result div {
+            background: #f9f9f9;
+            border: 1px solid #ddd;
+            border-radius: 10px;
+            padding: 15px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+            display: inline-block;
+            margin-top: 20px;
+            transition: background 0.3s, box-shadow 0.3s;
+        }
+
+        .result div:hover {
+            background: #e0f2f1;
+            box-shadow: 0 6px 12px rgba(0, 0, 0, 0.3);
+        }
+
+        .result span {
+            font-weight: bold;
+            color: #00796b;
+        }
+
+        .disclaimer {
+            text-align: center;
+            padding: 20px;
+            background: #fff;
+            border-radius: 15px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+            color: #333;
+            margin-top: 20px;
+            max-width: 600px;
+            width: 90%;
+        }
+
+        .disclaimer p {
+            font-size: 1rem;
+        }
+
+        .footer {
+            position: fixed;
+            bottom: 0;
+            width: 100%;
+            background: #00796b;
+            color: #fff;
+            text-align: center;
+            padding: 10px 0;
+            box-shadow: 0 -4px 8px rgba(0, 0, 0, 0.2);
+        }
+
+        .footer div {
+            margin-top: 5px;
+        }
+
+        #camera-stream {
+            width: 100%;
+            height: auto;
+            display: block;
+            border-radius: 10px;
+            margin-bottom: 10px;
+        }
+
+        .capture-button {
+            display: block;
+            margin: 10px auto;
+            padding: 10px;
+            font-size: 16px;
+            border: 2px solid #00796b;
+            border-radius: 5px;
+            background-color: #e0f2f1;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+
+        .capture-button:hover {
+            background-color: #b2dfdb;
+        }
+    </style>
+</head>
+<body>
+    <div class="welcome-screen" id="welcome-screen">
+        <h1>Welcome to Object Detection Model</h1>
+        <p>Created by Gautam Kumar</p>
+    </div>
+
+    <div class="container" id="main-container">
+        <h1>Object Detection</h1>
+        <input type="file" id="file-input" class="file-input">
+        <button id="camera-button" class="camera-button">Open Camera</button>
+        <button id="refresh-button" class="refresh-button">Refresh</button>
+        <p class="refresh-info">Click on refresh to clear the result</p>
+        
+        <!-- Camera and Capture Button -->
+        <div id="camera-container" style="display: none;">
+            <video id="camera-stream" autoplay></video>
+            <button id="capture-button" class="capture-button">Capture Image</button>
+        </div>
+        
+        <div id="image-container"></div>
+        <div id="result" class="result"></div>
+        <div id="captured-image" class="hidden"></div>
+    </div>
+
+    <div class="disclaimer" id="disclaimer">
+        <p>This is a Demo detection Model trained by TensorFlow; it may be incorrect sometimes.</p>
+    </div>
+
+    <div class="footer" id="footer">
+        <div>
+            <p>&copy; 2024 Gautam Kumar. All rights reserved.</p>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@latest"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/mobilenet@latest"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', async () => {
+            const welcomeScreen = document.getElementById('welcome-screen');
+            const mainContainer = document.getElementById('main-container');
+            const fileInput = document.getElementById('file-input');
+            const cameraButton = document.getElementById('camera-button');
+            const refreshButton = document.getElementById('refresh-button');
+            const cameraContainer = document.getElementById('camera-container');
+            const cameraStream = document.getElementById('camera-stream');
+            const captureButton = document.getElementById('capture-button');
+            const imageContainer = document.getElementById('image-container');
+            const resultContainer = document.getElementById('result');
+            const capturedImage = document.getElementById('captured-image');
+
+            // Hide welcome screen after 3 seconds
+            setTimeout(() => {
+                welcomeScreen.classList.add('hidden');
+                mainContainer.style.display = 'block';
+            }, 3000);
+
+            const model = await mobilenet.load();
+            console.log("Model loaded");
+
+            // File input functionality
+            fileInput.addEventListener('change', async (event) => {
+                const file = event.target.files[0];
+                if (file) {
+                    const reader = new FileReader();
+                    reader.onload = async (e) => {
+                        const imgElement = document.createElement('img');
+                        imgElement.src = e.target.result;
+                        imgElement.classList.add('uploaded-image');
+                        imageContainer.innerHTML = '';
+                        imageContainer.appendChild(imgElement);
+
+                        // Run predictions on the uploaded image
+                        imgElement.onload = async () => {
+                            const predictions = await model.classify(imgElement);
+
+                            resultContainer.innerHTML = '';
+                            if (predictions.length > 0) {
+                                // Sort predictions by probability in descending order
+                                predictions.sort((a, b) => b.probability - a.probability);
+
+                                // Get the top prediction
+                                const topPrediction = predictions[0];
+
+                                // Display the top prediction
+                                const resultDiv = document.createElement('div');
+                                resultDiv.innerHTML = `<span>Object:</span> ${topPrediction.className}<br>
+                                                       <span>Probability:</span> ${(topPrediction.probability * 100).toFixed(2)}%`;
+                                resultContainer.appendChild(resultDiv);
+                            } else {
+                                resultContainer.innerHTML = 'No objects detected.';
+                            }
+                        };
+                    };
+                    reader.readAsDataURL(file);
+                }
+            });
+
+            // Camera button functionality
+            cameraButton.addEventListener('click', () => {
+                cameraContainer.style.display = 'block';
+                if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+                    navigator.mediaDevices.getUserMedia({ video: true })
+                        .then((stream) => {
+                            cameraStream.srcObject = stream;
+                            cameraStream.play();
+                        })
+                        .catch((err) => {
+                            console.error('Error accessing camera: ', err);
+                            alert('Error accessing camera: ' + err.message);
+                        });
+                } else {
+                    alert('Camera not supported on this browser.');
+                }
+            });
+
+            // Capture button functionality
+            captureButton.addEventListener('click', () => {
+                const canvas = document.createElement('canvas');
+                canvas.width = cameraStream.videoWidth;
+                canvas.height = cameraStream.videoHeight;
+                const context = canvas.getContext('2d');
+                context.drawImage(cameraStream, 0, 0);
+
+                const imgElement = document.createElement('img');
+                imgElement.src = canvas.toDataURL('image/png');
+                imgElement.classList.add('uploaded-image');
+                capturedImage.innerHTML = '';
+                capturedImage.appendChild(imgElement);
+                capturedImage.classList.remove('hidden');
+
+                // Run predictions on the captured image
+                imgElement.onload = async () => {
+                    const predictions = await model.classify(imgElement);
+
+                    resultContainer.innerHTML = '';
+                    if (predictions.length > 0) {
+                        // Sort predictions by probability in descending order
+                        predictions.sort((a, b) => b.probability - a.probability);
+
+                        // Get the top prediction
+                        const topPrediction = predictions[0];
+
+                        // Display the top prediction
+                        const resultDiv = document.createElement('div');
+                        resultDiv.innerHTML = `<span>Object:</span> ${topPrediction.className}<br>
+                                               <span>Probability:</span> ${(topPrediction.probability * 100).toFixed(2)}%`;
+                        resultContainer.appendChild(resultDiv);
+                    } else {
+                        resultContainer.innerHTML = 'No objects detected.';
+                    }
+                };
+
+                // Hide the camera container
+                cameraContainer.style.display = 'none';
+                if (cameraStream.srcObject) {
+                    cameraStream.srcObject.getTracks().forEach(track => track.stop());
+                }
+            });
+
+            // Refresh button functionality
+            refreshButton.addEventListener('click', () => {
+                fileInput.value = '';
+                imageContainer.innerHTML = '';
+                resultContainer.innerHTML = '';
+                capturedImage.innerHTML = '';
+                capturedImage.classList.add('hidden');
+                cameraContainer.style.display = 'none';
+                if (cameraStream.srcObject) {
+                    cameraStream.srcObject.getTracks().forEach(track => track.stop());
+                }
+            });
+        });
+    </script>
+</body>
+</html>
