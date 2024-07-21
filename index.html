@@ -192,6 +192,7 @@
         <div id="camera-container" style="display: none;">
             <video id="camera-stream" autoplay></video>
             <button id="capture-button" class="capture-button">Capture Image</button>
+            <button id="switch-camera" class="capture-button">Switch Camera</button>
         </div>
         
         <div id="image-container"></div>
@@ -221,9 +222,13 @@
             const cameraContainer = document.getElementById('camera-container');
             const cameraStream = document.getElementById('camera-stream');
             const captureButton = document.getElementById('capture-button');
+            const switchCameraButton = document.getElementById('switch-camera');
             const imageContainer = document.getElementById('image-container');
             const resultContainer = document.getElementById('result');
             const capturedImage = document.getElementById('captured-image');
+
+            let currentStream;
+            let useFrontCamera = true;
 
             // Hide welcome screen after 3 seconds
             setTimeout(() => {
@@ -246,92 +251,79 @@
                         imageContainer.innerHTML = '';
                         imageContainer.appendChild(imgElement);
 
-                        // Run predictions on the uploaded image
-                        imgElement.onload = async () => {
-                            const predictions = await model.classify(imgElement);
-
-                            resultContainer.innerHTML = '';
-                            if (predictions.length > 0) {
-                                // Sort predictions by probability in descending order
-                                predictions.sort((a, b) => b.probability - a.probability);
-
-                                // Get the top prediction
-                                const topPrediction = predictions[0];
-
-                                // Display the top prediction
-                                const resultDiv = document.createElement('div');
-                                resultDiv.innerHTML = `<span>Object:</span> ${topPrediction.className}<br>
-                                                       <span>Probability:</span> ${(topPrediction.probability * 100).toFixed(2)}%`;
-                                resultContainer.appendChild(resultDiv);
-                            } else {
-                                resultContainer.innerHTML = 'No objects detected.';
-                            }
-                        };
+                        // Perform object detection
+                        const predictions = await model.classify(imgElement);
+                        displayResult(predictions);
                     };
                     reader.readAsDataURL(file);
                 }
             });
 
-            // Camera button functionality
-            cameraButton.addEventListener('click', () => {
+            // Open camera functionality
+            cameraButton.addEventListener('click', async () => {
                 cameraContainer.style.display = 'block';
-                if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
-                    navigator.mediaDevices.getUserMedia({ video: true })
-                        .then((stream) => {
-                            cameraStream.srcObject = stream;
-                            cameraStream.play();
-                        })
-                        .catch((err) => {
-                            console.error('Error accessing camera: ', err);
-                            alert('Error accessing camera: ' + err.message);
-                        });
-                } else {
-                    alert('Camera not supported on this browser.');
+                cameraButton.style.display = 'none';
+                fileInput.style.display = 'none';
+                refreshButton.style.display = 'none';
+                switchCameraButton.style.display = 'block';
+                captureButton.style.display = 'block';
+
+                if (currentStream) {
+                    currentStream.getTracks().forEach(track => track.stop());
+                }
+
+                const constraints = {
+                    video: { facingMode: useFrontCamera ? 'user' : { exact: 'environment' } },
+                    audio: false
+                };
+
+                try {
+                    currentStream = await navigator.mediaDevices.getUserMedia(constraints);
+                    cameraStream.srcObject = currentStream;
+                } catch (error) {
+                    console.error('Error accessing camera: ', error);
                 }
             });
 
-            // Capture button functionality
-            captureButton.addEventListener('click', () => {
+            // Switch camera functionality
+            switchCameraButton.addEventListener('click', async () => {
+                useFrontCamera = !useFrontCamera;
+                if (currentStream) {
+                    currentStream.getTracks().forEach(track => track.stop());
+                }
+
+                const constraints = {
+                    video: { facingMode: useFrontCamera ? 'user' : { exact: 'environment' } },
+                    audio: false
+                };
+
+                try {
+                    currentStream = await navigator.mediaDevices.getUserMedia(constraints);
+                    cameraStream.srcObject = currentStream;
+                } catch (error) {
+                    console.error('Error accessing camera: ', error);
+                }
+            });
+
+            // Capture image functionality
+            captureButton.addEventListener('click', async () => {
                 const canvas = document.createElement('canvas');
                 canvas.width = cameraStream.videoWidth;
                 canvas.height = cameraStream.videoHeight;
-                const context = canvas.getContext('2d');
-                context.drawImage(cameraStream, 0, 0);
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(cameraStream, 0, 0, canvas.width, canvas.height);
 
+                const dataUrl = canvas.toDataURL('image/jpeg');
                 const imgElement = document.createElement('img');
-                imgElement.src = canvas.toDataURL('image/png');
+                imgElement.src = dataUrl;
+                imgElement.id = 'captured-image';
                 imgElement.classList.add('uploaded-image');
-                capturedImage.innerHTML = '';
-                capturedImage.appendChild(imgElement);
-                capturedImage.classList.remove('hidden');
+                imageContainer.innerHTML = '';
+                imageContainer.appendChild(imgElement);
 
-                // Run predictions on the captured image
-                imgElement.onload = async () => {
-                    const predictions = await model.classify(imgElement);
-
-                    resultContainer.innerHTML = '';
-                    if (predictions.length > 0) {
-                        // Sort predictions by probability in descending order
-                        predictions.sort((a, b) => b.probability - a.probability);
-
-                        // Get the top prediction
-                        const topPrediction = predictions[0];
-
-                        // Display the top prediction
-                        const resultDiv = document.createElement('div');
-                        resultDiv.innerHTML = `<span>Object:</span> ${topPrediction.className}<br>
-                                               <span>Probability:</span> ${(topPrediction.probability * 100).toFixed(2)}%`;
-                        resultContainer.appendChild(resultDiv);
-                    } else {
-                        resultContainer.innerHTML = 'No objects detected.';
-                    }
-                };
-
-                // Hide the camera container
-                cameraContainer.style.display = 'none';
-                if (cameraStream.srcObject) {
-                    cameraStream.srcObject.getTracks().forEach(track => track.stop());
-                }
+                // Perform object detection
+                const predictions = await model.classify(imgElement);
+                displayResult(predictions);
             });
 
             // Refresh button functionality
@@ -339,13 +331,17 @@
                 fileInput.value = '';
                 imageContainer.innerHTML = '';
                 resultContainer.innerHTML = '';
-                capturedImage.innerHTML = '';
-                capturedImage.classList.add('hidden');
-                cameraContainer.style.display = 'none';
-                if (cameraStream.srcObject) {
-                    cameraStream.srcObject.getTracks().forEach(track => track.stop());
-                }
             });
+
+            // Function to display the result
+            function displayResult(predictions) {
+                resultContainer.innerHTML = `
+                    <div>
+                        <p>Most Probable Result:</p>
+                        <p><span>${predictions[0].className}</span> - ${Math.round(predictions[0].probability * 100)}%</p>
+                    </div>
+                `;
+            }
         });
     </script>
 </body>
